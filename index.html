@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>PAGASA SYNOP Validator — Separated Ruleset</title>
+  <meta name="description" content="Operational WMO FM 12 SYNOP code checks with pressure-history validation.">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='13' fill='%230b2d48'/%3E%3Cpath d='M10 36c8-12 15 12 23 0s15 12 22 0' fill='none' stroke='%235bd0e6' stroke-width='6' stroke-linecap='round'/%3E%3Cpath d='M13 20h38' stroke='%23fff' stroke-width='5' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="styles.css?v=0.12">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="mark" aria-hidden="true">≋</span><div><strong>PAGASA SYNOP Validator</strong><small>WMO FM 12 · operational draft</small></div></div>
+    <span class="status-pill">Ruleset v0.13-separated</span>
+  </header>
+
+  <main>
+    <section class="workspace" aria-labelledby="workspace-title">
+      <div class="section-heading">
+        <div><p class="eyebrow">SEPARATED RULESET REVIEW</p><h1 id="workspace-title">Validate one surface observation</h1><p class="field-note">Operational settings are isolated in <code>ruleset-config.js</code>; validation logic is in <code>ruleset.js</code>.</p></div>
+        <button id="loadSample" class="button ghost" type="button">Load error sample</button>
+      </div>
+
+      <label for="synopCode">Complete bulletin or SYNOP observation</label>
+      <textarea id="synopCode" spellcheck="false" placeholder="Paste SMPH20 RPLC… AAXX… ="></textarea>
+
+      <div class="pressure-card">
+        <div class="pressure-title"><div><h2>Pressure history</h2><p>Enter the MSLP from three hours earlier to verify <code>5appp</code>.</p></div><span id="obsTimeBadge" class="time-badge">Time not detected</span></div>
+        <div class="pressure-grid">
+          <label>3 hours before (hPa)<input id="p3" inputmode="decimal" type="number" step="0.1" placeholder="e.g. 1011.6"></label>
+          <label id="p24Wrap" class="conditional">24 hours before (hPa)<input id="p24" inputmode="decimal" type="number" step="0.1" placeholder="Required at 00/12 UTC"></label>
+        </div>
+        <label class="check-row"><input id="rainOccurred" type="checkbox"> Rainfall occurred during the reporting period</label>
+        <p class="field-note">Tick this only when rainfall occurred. The checker will compare the rainfall group, <code>iR</code>, <code>tR</code>, and present/past weather. Leaving it unticked does not mean zero rainfall.</p>
+        <p class="field-note">The 3-hour difference checks the sign category of <code>a</code> and the magnitude in <code>ppp</code>. At 00 and 12 UTC, the 24-hour value checks the Section 3 <code>58/59</code> group.</p>
+      </div>
+
+      <div class="actions"><button id="validate" class="button primary" type="button">Validate observation</button><button id="clear" class="button ghost" type="button">Clear</button></div>
+    </section>
+
+    <section id="results" class="results" aria-live="polite" aria-labelledby="results-title">
+      <div class="empty-state"><div class="empty-icon">✓</div><h2 id="results-title">Ready to check</h2><p>Paste an observation and provide its pressure history.</p></div>
+    </section>
+  </main>
+
+  <footer>Review build with the operational rules separated from the page code. Confirm PAGASA national practices before operational use.</footer>
+  <!-- Load order matters: editable settings, rule engine, then page controls. -->
+  <script src="ruleset-config.js?v=0.13"></script>
+  <script src="ruleset.js?v=0.13"></script>
+  <script src="app.js?v=0.13"></script>
+</body>
+</html>
