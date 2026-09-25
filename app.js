@@ -5,6 +5,10 @@
  * Meteorological rules belong in ruleset-config.js or ruleset.js.
  */
 
+// Keep page-only variable names inside this private wrapper. This prevents
+// them from colliding with functions exported by ruleset.js in the browser.
+(() => {
+
 const $ = (id) => document.getElementById(id);
 const { parseCode, validate } = window.SynopRuleset;
 const sample4 = `SMPH20 RPLC 151200 AAXX 15121 98327 11462 72502 10260 20240 39924 40097 56019 69961 76098 84470 333 10342 56990 58002 84620 87360=JD/MP`;
@@ -41,3 +45,5 @@ $("clear").addEventListener("click",()=>{$("synopCode").value="";$("rainOccurred
 if(document.modelContext?.registerTool){
   try{document.modelContext.registerTool({name:"validate_synop",title:"Validate SYNOP",description:"Validate one WMO FM 12 SYNOP observation using the same rules and supporting inputs as the visible checker.",inputSchema:{type:"object",properties:{code:{type:"string"},mslp_3h_ago:{type:"number"},mslp_24h_ago:{type:"number"},rainfall_occurred:{type:"boolean"}},required:["code"],additionalProperties:false},annotations:{readOnlyHint:true,untrustedContentHint:true},execute(input){if(!input||typeof input.code!=="string")throw new Error("code must be a string");const h={p3:input.mslp_3h_ago??null,p24:input.mslp_24h_ago??null,rainOccurred:input.rainfall_occurred===true};$("synopCode").value=input.code;$("rainOccurred").checked=h.rainOccurred;$("p3").value=h.p3??"";$("p24").value=h.p24??"";updateTime();const r=validate(input.code,h);render(r);return {status:r.issues.some(x=>x.severity==="error")?"invalid":r.issues.some(x=>x.severity==="warning")?"warning":"valid",issues:r.issues,decoded:r.decoded};}})}catch(e){console.warn("WebMCP registration unavailable",e)}
 }
+
+})();

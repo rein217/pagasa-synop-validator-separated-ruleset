@@ -13,7 +13,7 @@
 
 window.SYNOP_RULESET_CONFIG = Object.freeze({
   // Displayed in the page header and successful validation message.
-  version: "v0.13-separated",
+  version: "v0.13.1-separated",
 
   // Operational pressure limits in hectopascals.
   pressure: {

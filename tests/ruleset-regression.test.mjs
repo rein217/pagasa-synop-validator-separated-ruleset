@@ -16,7 +16,11 @@ vm.runInContext(`${configSource}\n${rulesetSource}\nglobalThis.runValidation=Syn
 const pageSource=fs.readFileSync(new URL("../app.js",import.meta.url),"utf8");
 assert.ok(rulesetSource.includes("MSLP outside the realistic surface range"));
 assert.ok(!pageSource.includes("MSLP outside the realistic surface range"));
-assert.equal(context.SYNOP_RULESET_CONFIG.version,"v0.13-separated");
+assert.equal(context.SYNOP_RULESET_CONFIG.version,"v0.13.1-separated");
+
+// Browser-load guard: load app.js after the ruleset as separate classic
+// scripts. This catches global-name collisions that a syntax check misses.
+vm.runInContext(pageSource,context,{filename:"app.js"});
 
 const missed=`SIPH20 RPLC 212100 AAXX 21211 98327 32458 72001 10253 20238 39930 40102 55002 83108 333 56909 83820 87360=IC`;
 const missedResult=context.runValidation(missed,{p3:null,p24:null,rainOccurred:false});
