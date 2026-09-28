@@ -127,6 +127,9 @@ assert.ok(wrongTemperatureSchedule.issues.some(issue=>issue.title==="Maximum tem
 const badCloudDirection=context.runValidation(`${baseHead} 11465 52401 10264 20240 39939 40112 53011 60164 70162 84901 333 20240 55066 56999 58014 70155 81915 83820 86080 94945 555 20002=JG/MP`,{p3:null,p24:null,rainOccurred:false});
 assert.ok(badCloudDirection.issues.some(issue=>issue.title==="Middle-cloud direction conflicts with no cloud"),"56DDD must use 0 when CM=0");
 
+const validHighCloudObscuration=context.runValidation(`SIPH20 RPLC 272100 AAXX 27211 98327 32460 83501 10261 20242 39946 40119 53004 8211/ 333 56999 82820 88460=IC/JG`,{p3:null,p24:null,rainOccurred:false});
+assert.ok(!validHighCloudObscuration.issues.some(issue=>issue.title==="High-cloud obscuration needs review"),"Ns=8 middle cloud must support CH=/ regardless of the CM type-code figure");
+
 const zeroH24=context.runValidation(`${baseHead} 11465 52401 10264 20240 39939 40112 53011 60164 70162 84901 333 20240 55066 56909 59000 70155 81915 83820 86080 94945 555 20002=JG/MP`,{p3:null,p24:1011.2,rainOccurred:false});
 assert.ok(zeroH24.issues.some(issue=>issue.title==="Zero 24-hour pressure change must use 58"),"zero 24-hour change must use 58000");
 

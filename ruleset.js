@@ -378,7 +378,9 @@ function validate(raw, history={}) {
       if(typeCodes[i]==="0"&&directions[i]!=="0") addIssue(issues,"error",`${label[0].toUpperCase()+label.slice(1)}-cloud direction conflicts with no cloud`,`${section1CloudMeaning(primaryCloud,label)}; therefore ${directionGroup} should use direction indicator 0 for ${label} cloud, not ${directions[i]}.`,`${primaryCloud} ${directionGroup}`,`Use 0 in the ${label}-cloud direction position, or correct the Section 1 cloud type.`);
       if(typeCodes[i]==="/"&&directions[i]!=="9") addIssue(issues,"error",`${label[0].toUpperCase()+label.slice(1)}-cloud direction should be unknown`,`${section1CloudMeaning(primaryCloud,label)}; use direction indicator 9 because the cloud cannot be observed.`,`${primaryCloud} ${directionGroup}`,`Use 9 in the ${label}-cloud direction position.`);
     });
-    if(primaryCloud[4]==="/"&&!['7','8'].includes(primaryCloud[3])) addIssue(issues,"warning","High-cloud obscuration needs review",`CH=/ means high cloud cannot be observed, but CM=${primaryCloud[3]} is not 7 or 8 in the supplied PAGASA practice.`,`${primaryCloud} ${directionGroup}`,"Confirm the middle-cloud type obscuring the high cloud and use high-cloud direction indicator 9.");
+    // CM is a cloud-type code, not an amount. Use the Section 3 Ns figure.
+    const highCloudObscured=cloudLayers.some(layer=>layer.ns>=7&&layer.ns<=8&&layer.c>=3&&layer.c<=5);
+    if(primaryCloud[4]==="/"&&!highCloudObscured) addIssue(issues,"warning","High-cloud obscuration needs review",`CH=/ means high cloud cannot be observed, but no Section 3 middle-cloud layer reports Ns=7 or 8 oktas. CM=${primaryCloud[3]} identifies the middle-cloud type; it is not the cloud amount.`,`${primaryCloud} ${directionGroup}`,"Confirm the obscuring middle-cloud layer and report it as 8NsChshs with Ns=7 or 8; use high-cloud direction indicator 9.");
   }
 
   // Cross-check present precipitation against the cloud forms in the supplied PAGASA table.
