@@ -2,7 +2,7 @@
 
 The website is divided into three JavaScript files so that operational rules can be reviewed without touching the page controls.
 
-## 1. `ruleset-config.js`
+## 1. `dist/ruleset-config.js`
 
 Start here for routine policy changes. It contains readable settings for:
 
@@ -22,7 +22,7 @@ Example: changing the maximum realistic MSLP from `1085.0` to `1080.0` requires 
 maximumMslp: 1080.0
 ```
 
-## 2. `ruleset.js`
+## 2. `dist/ruleset.js`
 
 This contains the meteorological logic. Each batch has a comment describing its purpose. Edit this file only when the actual logic changes—for example, when a new relationship between two coded groups must be checked.
 
@@ -32,7 +32,7 @@ The file exports only:
 - `SynopRuleset.validate()`
 - `SynopRuleset.version`
 
-## 3. `app.js`
+## 3. `dist/app.js`
 
 This controls the visible webpage:
 
@@ -54,3 +54,17 @@ Changing an operational meteorological rule should normally not require editing 
 6. Upload the changed file to GitHub and commit it.
 
 Keep the previous working version available so a change can be reversed if testing finds a problem.
+
+## PAGASA cloud-layer interpretation added in v0.14
+
+Do not add individual Section 3 cloud-layer amounts to derive `Nh`. Each `Ns`
+is estimated as if the other layers did not exist, so layers may overlap. Check
+that an individual low-cloud `Ns` does not exceed `Nh`, but allow, for example,
+`Nh=5` with 3 oktas Cumulus and 4 oktas Stratocumulus.
+
+For sky state:
+
+- `N=0`: omit the main cloud group and Section 3 cloud groups;
+- `N=9`: omit the main cloud group and report `89/hshs`, where `hshs` is
+  vertical visibility; and
+- `N=/`: omit the main cloud group and Section 3 cloud groups.

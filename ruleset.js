@@ -86,15 +86,21 @@ function expectedCloudTypes(primaryGroup, layerCode) {
     if(cm===0) return [];
     if(cm===1) return [4];
     if(cm===2) return [4,5];
+    // CM=7 explicitly contains Altocumulus with Altostratus or Nimbostratus.
+    if(cm===7) return [3,4,5];
     return cm>=3&&cm<=9?[3]:[];
   }
   if(primaryGroup[2]==="/") return null;
   if(cl===0) return [];
   // CL=3 or 9 confirms CB, but it does not exclude other low-cloud genera.
   if([3,9].includes(cl)) return [6,7,8,9];
-  if([1,2,8].includes(cl)) return [8];
+  if([1,2].includes(cl)) return [8];
+  // CL=8 explicitly contains both Cumulus and Stratocumulus.
+  if(cl===8) return [6,8];
   if([4,5].includes(cl)) return [6];
-  if([6,7].includes(cl)) return [7];
+  if(cl===6) return [7];
+  // CL=7 may be Stratus fractus or Cumulus fractus.
+  if(cl===7) return [7,8];
   return [];
 }
 
@@ -290,7 +296,22 @@ function validate(raw, history={}) {
 
   // PAGASA 1-3-5 rule: first layer >=1 okta, second >=3, third >=5;
   // CB is always reportable as an additional layer, with four groups maximum.
-  if(totalCloud==="0"&&layerClouds.length) addIssue(issues,"error","Reportable clouds conflict with clear sky",`N=0 means the sky is clear, but ${layerClouds.length} reportable-cloud group${layerClouds.length===1?" is":"s are"} present.`,`${p.sec1[1]} ${layerClouds.join(" ")}`,"Remove the 8-groups if the sky is clear, or correct N after checking the observation.");
+  if(totalCloud==="0"&&primaryCloud) addIssue(issues,"error","Main cloud group conflicts with clear sky","N=0 means the sky is clear, so the Section 1 8NhCLCMCH group must be omitted.",`${p.sec1[1]} ${primaryCloud}`,"Remove the main cloud group, or correct N after checking the observation.");
+  if(totalCloud==="0"&&layerClouds.length) addIssue(issues,"error","Reportable clouds conflict with clear sky",`N=0 means the sky is clear, but ${layerClouds.length} reportable-cloud group${layerClouds.length===1?" is":"s are"} present.`,`${p.sec1[1]} ${layerClouds.join(" ")}`,"Remove the Section 3 8-groups, or correct N after checking the observation.");
+  if(totalCloud==="/"&&primaryCloud) addIssue(issues,"error","Main cloud group conflicts with unobservable sky","N=/ means cloud amount cannot be observed, so the Section 1 8NhCLCMCH group must be omitted.",`${p.sec1[1]} ${primaryCloud}`,"Remove the main cloud group, or correct N after checking the observation.");
+  if(totalCloud==="/"&&layerClouds.length) addIssue(issues,"error","Reportable clouds conflict with unobservable sky","N=/ requires omission of the Section 3 individual cloud groups.",`${p.sec1[1]} ${layerClouds.join(" ")}`,"Remove the Section 3 8-groups, or correct N after checking the observation.");
+  if(totalCloud==="9"&&primaryCloud) addIssue(issues,"error","Main cloud group must be omitted for an obscured sky","N=9 means the sky is obscured, so the Section 1 8NhCLCMCH group must be omitted.",`${p.sec1[1]} ${primaryCloud}`,"Remove the main cloud group and report vertical visibility in Section 3 as 89/hshs.");
+  if(totalCloud==="9"){
+    const obscuredGroups=layerClouds.filter(g=>/^89\/\d{2}$/.test(g));
+    const invalidObscured=layerClouds.filter(g=>!/^89\/\d{2}$/.test(g));
+    if(!obscuredGroups.length) addIssue(issues,"error","Vertical-visibility group missing for obscured sky","N=9 requires a Section 3 89/hshs group, where hshs is the vertical visibility.",p.sec1[1],"Add 89/hshs using the observed vertical visibility.");
+    invalidObscured.forEach(g=>addIssue(issues,"error","Invalid cloud group for obscured sky",`${g} is not the required 89/hshs vertical-visibility form.`,`${p.sec1[1]} ${g}`,"Use 89/hshs with the observed vertical visibility."));
+    obscuredGroups.forEach(g=>{
+      const vvRange=layerBaseRange(g.slice(3));
+      if(!vvRange) addIssue(issues,"error","Invalid vertical-visibility code",`hshs=${g.slice(3)} is not assigned for vertical visibility.`,g,"Use the valid hshs code for the observed vertical visibility.");
+      else decoded["Vertical visibility"]=`hshs=${g.slice(3)}: ${vvRange[2]}`;
+    });
+  }
   if(layerClouds.length>RULES.maximumReportableCloudGroups) addIssue(issues,"error","Too many reportable-cloud groups",`PAGASA practice permits at most ${RULES.maximumReportableCloudGroups} 8NsChshs groups, including an additional CB group.`,layerClouds.join(" "),"Report the layers selected by the 1-3-5 rule and include CB when observed.");
 
   const cloudLayers=layerClouds.map(g=>({g,ns:Number(g[1]),c:Number(g[2]),range:layerBaseRange(g.slice(3))}));
@@ -301,11 +322,9 @@ function validate(raw, history={}) {
   const numericLowLayers=cloudLayers.filter(layer=>layer.c>=6&&layer.c<=9&&Number.isFinite(layer.ns)&&layer.ns!==9);
   if(primaryCloud&&/^\d$/.test(primaryCloud[1])&&numericLowLayers.length){
     const nh=Number(primaryCloud[1]),tooLarge=numericLowLayers.find(layer=>layer.ns>nh);
-    const layerSummary=numericLowLayers.map(layer=>`${cloudGenus(layer.c)} ${layer.ns}`).join(" + ");
-    const amountSum=numericLowLayers.reduce((sum,layer)=>sum+layer.ns,0);
-    decoded["Low-cloud amount check"]=`Nh=${nh}; ${layerSummary} = ${amountSum} oktas`;
+    const layerSummary=numericLowLayers.map(layer=>`${cloudGenus(layer.c)} Ns=${layer.ns}`).join("; ");
+    decoded["Low-cloud amount check"]=`Nh=${nh}; individual layers: ${layerSummary}`;
     if(tooLarge) addIssue(issues,"error","Individual low-cloud amount exceeds Nh",`${tooLarge.g} reports Ns=${tooLarge.ns}, which is greater than the total low-cloud amount Nh=${nh}.`,`${primaryCloud} ${tooLarge.g}`,"Check Nh and the individual layer amount Ns. Do not require every low-cloud Ns to equal Nh.");
-    if(amountSum!==nh) addIssue(issues,"error","Low-cloud amounts do not add up to Nh",`The reportable low-cloud layers total ${amountSum} oktas (${layerSummary}), but Section 1 reports Nh=${nh}. Under the supplied PAGASA practice, these low-cloud amounts are added without overlap.`,`${primaryCloud} ${numericLowLayers.map(layer=>layer.g).join(" ")}`,`Use Nh=${amountSum}, or correct the individual low-cloud amounts after checking the observation.`);
   }
   for(let i=1;i<cloudLayers.length;i++){
     const lower=cloudLayers[i-1],higher=cloudLayers[i];
@@ -345,8 +364,11 @@ function validate(raw, history={}) {
       // This matters when CB and other low-cloud layers coexist.
       const layerRange=layerBaseRange(g.slice(3));
       if(layerRange&&!cloudLevelMatches(c,layerRange)) addIssue(issues,"error","Cloud type and base-height level conflict",`${cloudFamily(c)[0].toUpperCase()+cloudFamily(c).slice(1)} cloud C=${c} is reported with hshs=${g.slice(3)} (${layerRange[2]}), outside its expected level: low below 2,000 m; middle 2,000-6,000 m; high above 6,000 m.`,g,"Check both cloud genus C and the coded base height hshs.");
-      if(c>=6&&range&&layerRange&&(layerRange[1]<range[0]||layerRange[0]>range[1])) addIssue(issues,"warning","Cloud-base height needs review",`The lowest-cloud h code ${hCode} and layer base ${g.slice(3)} (${layerRange[2]}) are not in the same height range.`,`${p.sec1[0]} ${g}`);
     });
+    // h describes the base of the lowest cloud only. Higher low-cloud layers
+    // must not be compared separately with the same h value.
+    const lowestLowLayer=cloudLayers.filter(layer=>layer.c>=6&&layer.c<=9&&layer.range).sort((a,b)=>a.range[0]-b.range[0])[0];
+    if(lowestLowLayer&&range&&(lowestLowLayer.range[1]<range[0]||lowestLowLayer.range[0]>range[1])) addIssue(issues,"warning","Lowest cloud-base height needs review",`The lowest-cloud h code ${hCode} and the lowest reported low-cloud base ${lowestLowLayer.g.slice(3)} (${lowestLowLayer.range[2]}) are not in the same height range.`,`${p.sec1[0]} ${lowestLowLayer.g}`);
   }
 
   const directionGroup=p.sec3.find(g=>/^56\d{3}$/.test(g));

@@ -16,7 +16,9 @@ vm.runInContext(`${configSource}\n${rulesetSource}\nglobalThis.runValidation=Syn
 const pageSource=fs.readFileSync(new URL("../app.js",import.meta.url),"utf8");
 assert.ok(rulesetSource.includes("MSLP outside the realistic surface range"));
 assert.ok(!pageSource.includes("MSLP outside the realistic surface range"));
-assert.equal(context.SYNOP_RULESET_CONFIG.version,"v0.13.1-separated");
+assert.equal(context.SYNOP_RULESET_CONFIG.version,"v0.14.2-separated");
+assert.ok(pageSource.includes("renieragas@gmail.com"),"feedback email must be addressed to the designated reviewer");
+assert.ok(pageSource.includes('document.createElement("a")'),"feedback must launch through an actual mail link");
 
 // Browser-load guard: load app.js after the ruleset as separate classic
 // scripts. This catches global-name collisions that a syntax check misses.
@@ -59,7 +61,22 @@ const validCbAndCu=`SIPH20 RPLC 212100 AAXX 21211 98327 32458 72001 10253 20238 
 const validCbAndCuResult=context.runValidation(validCbAndCu,{p3:null,p24:null,rainOccurred:false});
 assert.ok(!validCbAndCuResult.issues.some(issue=>/low-cloud (amount|mismatch)/i.test(`${issue.title} ${issue.detail}`)),"1 okta CB plus 3 oktas Cumulus must be accepted with Nh=4");
 assert.ok(!validCbAndCuResult.issues.some(issue=>issue.title==="CB reportable-cloud group missing"),"81915 must satisfy the reportable CB requirement");
-assert.equal(validCbAndCuResult.decoded["Low-cloud amount check"],"Nh=4; Cumulonimbus 1 + Cumulus 3 = 4 oktas");
+assert.equal(validCbAndCuResult.decoded["Low-cloud amount check"],"Nh=4; individual layers: Cumulonimbus Ns=1; Cumulus Ns=3");
+
+// Official PAGASA example: individual layer amounts are estimated as if no
+// other cloud existed. Ns=3 Cu and Ns=4 Sc may overlap under Nh=5.
+const officialOverlappingLayers=context.runValidation(`AAXX 01031 98327 11465 00000 10200 20100 40000 50000 85800 333 83820 84630=`,{p3:null,p24:null,rainOccurred:false});
+assert.ok(!officialOverlappingLayers.issues.some(issue=>/low-cloud amounts do not add up/i.test(issue.title)),"overlapping low-cloud layers must not be added to derive Nh");
+assert.ok(!officialOverlappingLayers.issues.some(issue=>/reportable low-cloud mismatch/i.test(`${issue.title} ${issue.detail}`)),"CL=8 must allow both Cumulus and Stratocumulus");
+
+const obscuredCorrect=context.runValidation(`AAXX 01031 98327 11410 90000 10200 20100 40000 50000 333 89/00=`,{p3:null,p24:null,rainOccurred:false});
+assert.ok(!obscuredCorrect.issues.some(issue=>/obscured sky|vertical-visibility/i.test(issue.title)),"N=9 with 89/hshs must be accepted");
+const obscuredMissing=context.runValidation(`AAXX 01031 98327 11410 90000 10200 20100 40000 50000 333=`,{p3:null,p24:null,rainOccurred:false});
+assert.ok(obscuredMissing.issues.some(issue=>issue.title==="Vertical-visibility group missing for obscured sky"),"N=9 must require 89/hshs");
+const clearWithMainCloud=context.runValidation(`AAXX 01031 98327 11465 00000 10200 20100 40000 50000 80000 333=`,{p3:null,p24:null,rainOccurred:false});
+assert.ok(clearWithMainCloud.issues.some(issue=>issue.title==="Main cloud group conflicts with clear sky"),"N=0 must omit the main cloud group");
+const unobservableWithLayer=context.runValidation(`AAXX 01031 98327 11465 /0000 10200 20100 40000 50000 333 83820=`,{p3:null,p24:null,rainOccurred:false});
+assert.ok(unobservableWithLayer.issues.some(issue=>issue.title==="Reportable clouds conflict with unobservable sky"),"N=/ must omit Section 3 cloud layers");
 
 // Pressure groups are encoded in tenths of a hectopascal. Exact matches pass;
 // even a 0.1 hPa difference must be reported as an error.
@@ -89,7 +106,7 @@ assert.ok(unexplainedLowVisibility.issues.some(issue=>issue.title==="Low visibil
 
 const cloudArithmetic=context.runValidation(`${baseHead} 11465 52401 10264 20240 39939 40112 53011 60164 70162 84901 333 20240 55066 56909 58014 70155 81915 84820 86080 94945 555 20002=JG/MP`,{p3:null,p24:null,rainOccurred:false});
 assert.ok(cloudArithmetic.issues.some(issue=>issue.title==="Individual cloud layer exceeds total cloud cover"),"Ns greater than N must be detected");
-assert.ok(cloudArithmetic.issues.some(issue=>issue.title==="Low-cloud amounts do not add up to Nh"),"summed low-cloud Ns must equal Nh");
+assert.ok(!cloudArithmetic.issues.some(issue=>issue.title==="Low-cloud amounts do not add up to Nh"),"individual low-cloud layers must not be summed to derive Nh");
 
 const duplicate=context.runValidation(`${baseHead} 11465 52401 10264 10264 20240 39939 40112 53011 60164 70162 84901 333 20240 55066 56909 58014 70155 81915 83820 86080 94945 555 20002=JG/MP`,{p3:null,p24:null,rainOccurred:false});
 assert.ok(duplicate.issues.some(issue=>issue.title==="Duplicate Section 1 group"&&issue.group==="10264"),"duplicate Section 1 groups must be detected");
