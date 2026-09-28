@@ -11,13 +11,15 @@ as a fallback when the device has no default email application.
 
 ## Required website files
 
-Keep these five files together in the repository root:
+Keep these website files together in the repository root:
 
 - `index.html`
 - `styles.css`
 - `app.js`
 - `ruleset-config.js`
 - `ruleset.js`
+- `ruleset.html`
+- `PAGASA_SYNOP_Validator_Ruleset_v0.14.2.pdf`
 
 The documentation and `tests` folder are recommended but are not required for
 the webpage to load.
@@ -29,6 +31,7 @@ the webpage to load.
 - `app.js` contains webpage controls and result rendering.
 - `index.html` loads the files in the required order.
 - `styles.css` contains the first site's visual design.
+- `ruleset.html` displays the current ruleset and provides the PDF download.
 
 ## Test before publishing
 

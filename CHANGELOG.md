@@ -1,5 +1,11 @@
 # Change log
 
+## v0.14.2 site-document update
+
+- Made the header Ruleset v0.14.2 badge clickable.
+- Added an in-site ruleset viewer page.
+- Added a direct PDF download option for operational review.
+
 ## v0.14.2-separated
 
 - Fixed email feedback not opening on some browsers and hosted pages.

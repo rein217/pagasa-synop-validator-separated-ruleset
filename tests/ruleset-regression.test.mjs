@@ -19,6 +19,10 @@ assert.ok(!pageSource.includes("MSLP outside the realistic surface range"));
 assert.equal(context.SYNOP_RULESET_CONFIG.version,"v0.14.2-separated");
 assert.ok(pageSource.includes("renieragas@gmail.com"),"feedback email must be addressed to the designated reviewer");
 assert.ok(pageSource.includes('document.createElement("a")'),"feedback must launch through an actual mail link");
+const indexSource=fs.readFileSync(new URL("../index.html",import.meta.url),"utf8");
+const rulesPageSource=fs.readFileSync(new URL("../ruleset.html",import.meta.url),"utf8");
+assert.ok(indexSource.includes('href="ruleset.html"'),"ruleset version badge must open the ruleset page");
+assert.ok(rulesPageSource.includes("PAGASA_SYNOP_Validator_Ruleset_v0.14.2.pdf"),"ruleset page must show and download the current PDF");
 
 // Browser-load guard: load app.js after the ruleset as separate classic
 // scripts. This catches global-name collisions that a syntax check misses.
