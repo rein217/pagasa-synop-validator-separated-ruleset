@@ -155,6 +155,7 @@ function parseCode(raw) {
 // Batch 3 — main validator. It calls the individual rule blocks below.
 function validate(raw, history={}) {
   const p=parseCode(raw), issues=[], decoded={};
+  const mainHours=RULES.schedule.mainHours, intermediateHours=RULES.schedule.intermediateHours;
   if(!raw.trim()){addIssue(issues,"error","No observation entered","Paste one complete SYNOP observation.");return {issues,decoded,p};}
   if(p.ax<0){addIssue(issues,"error","AAXX identifier missing","A fixed-land-station SYNOP must be identified by AAXX.","","Add AAXX before YYGGiw.");return {issues,decoded,p};}
   if(!raw.includes("=")) addIssue(issues,"warning","End marker missing","The observation does not contain the '=' end marker.","","Add '=' before the observer initials.");
@@ -171,6 +172,9 @@ function validate(raw, history={}) {
     if(day<1||day>31) addIssue(issues,"error","Invalid observation day","YY must be from 01 to 31.",p.yy);
     if(hour<0||hour>23) addIssue(issues,"error","Invalid observation hour","GG must be from 00 to 23.",p.yy);
     if(![0,1,3,4].includes(iw)) addIssue(issues,"error","Invalid wind indicator","iw must be 0, 1, 3 or 4 for the FM 12 wind-unit and measurement combinations.",p.yy);
+    const bulletinType=p.header[0]?.slice(0,4);
+    if(bulletinType==="SIPH"&&mainHours.includes(hour)) addIssue(issues,"error","Bulletin type mismatches main observation time",`The observation is at ${String(hour).padStart(2,"0")} UTC. Main standard observations use SMPH, not SIPH.`,p.header[0],"Use SMPH for main observations and SIPH for intermediate observations.");
+    if(bulletinType==="SMPH"&&intermediateHours.includes(hour)) addIssue(issues,"error","Bulletin type mismatches intermediate observation time",`The observation is at ${String(hour).padStart(2,"0")} UTC. Intermediate observations use SIPH, not SMPH.`,p.header[0],"Use SIPH for intermediate observations and SMPH for main standard observations.");
     if(p.header[2]&&/^\d{6}$/.test(p.header[2])&&(p.header[2].slice(0,4)!==p.yy.slice(0,4))) addIssue(issues,"error","Date-time mismatch","The bulletin YYGG does not match the AAXX YYGGiw group.",`${p.header[2]} / ${p.yy}`);
   }
   if(!/^\d{5}$/.test(p.station)) addIssue(issues,"error","Invalid station identifier","IIiii must contain five digits.",p.station);
@@ -225,7 +229,6 @@ function validate(raw, history={}) {
   const ir=p.sec1[0]?.[0], ix=p.sec1[0]?.[1], rain1=section1Data.filter(g=>/^6[0-9\/]{4}$/.test(g)), rain3=p.sec3.filter(g=>/^6[0-9\/]{4}$/.test(g));
   const hour=/^\d{5}$/.test(p.yy)?Number(p.yy.slice(2,4)):null;
   // Batch 4 — rainfall location, iR and observation-time checks.
-  const mainHours=RULES.schedule.mainHours,intermediateHours=RULES.schedule.intermediateHours;
   if(mainHours.includes(hour)&&ir==="2") addIssue(issues,"error","iR=2 is invalid at a main observation time",`The observation is at ${String(hour).padStart(2,"0")} UTC. Under the PAGASA schedule, iR=2 is for an intermediate observation, not a main observation.`,p.sec1[0],"Use the iR value and rainfall-group location required for the main observation after checking the reporting schedule.");
   if(intermediateHours.includes(hour)&&ir==="1") addIssue(issues,"error","iR=1 is invalid at an intermediate observation time",`The observation is at ${String(hour).padStart(2,"0")} UTC. Under the PAGASA schedule, iR=1 is for a main observation, not an intermediate observation.`,p.sec1[0],"Use the iR value and rainfall-group location required for the intermediate observation.");
   if(ir==="0"&&(rain1.length===0||rain3.length===0)) addIssue(issues,"error","Rainfall value missing","iR=0 requires a 6RRRtR rainfall group in both Sections 1 and 3.",p.sec1[0]);

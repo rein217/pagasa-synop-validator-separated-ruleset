@@ -7,13 +7,13 @@ const elements=new Map();
 const context={console,document:{getElementById(id){if(!elements.has(id))elements.set(id,element());return elements.get(id);},modelContext:null}};
 context.window=context;
 vm.createContext(context);
-const configSource=fs.readFileSync(new URL("../ruleset-config.js",import.meta.url),"utf8");
-const rulesetSource=fs.readFileSync(new URL("../ruleset.js",import.meta.url),"utf8");
+const configSource=fs.readFileSync(new URL("../dist/js/ruleset-config.js",import.meta.url),"utf8");
+const rulesetSource=fs.readFileSync(new URL("../dist/js/ruleset.js",import.meta.url),"utf8");
 vm.runInContext(`${configSource}\n${rulesetSource}\nglobalThis.runValidation=SynopRuleset.validate;`,context);
 
 // Architecture guard: meteorological findings belong in the ruleset,
 // while the page controller should not contain operational error rules.
-const pageSource=fs.readFileSync(new URL("../app.js",import.meta.url),"utf8");
+const pageSource=fs.readFileSync(new URL("../dist/js/app.js",import.meta.url),"utf8");
 assert.ok(rulesetSource.includes("MSLP outside the realistic surface range"));
 assert.ok(!pageSource.includes("MSLP outside the realistic surface range"));
 assert.equal(context.SYNOP_RULESET_CONFIG.version,"v0.14.2-separated");
@@ -22,7 +22,7 @@ assert.ok(pageSource.includes('document.createElement("a")'),"feedback must laun
 const indexSource=fs.readFileSync(new URL("../index.html",import.meta.url),"utf8");
 const rulesPageSource=fs.readFileSync(new URL("../ruleset.html",import.meta.url),"utf8");
 assert.ok(indexSource.includes('href="ruleset.html"'),"ruleset version badge must open the ruleset page");
-assert.ok(rulesPageSource.includes("PAGASA_SYNOP_Validator_Ruleset_v0.14.2.pdf"),"ruleset page must show and download the current PDF");
+assert.ok(rulesPageSource.includes("dist/pdf/PAGASA_SYNOP_Validator_Ruleset_v0.14.2.pdf"),"ruleset page must show and download the current PDF");
 
 // Browser-load guard: load app.js after the ruleset as separate classic
 // scripts. This catches global-name collisions that a syntax check misses.
@@ -101,6 +101,12 @@ assert.ok(pressure24hOffByTenth.issues.some(issue=>issue.title==="24-hour pressu
 const pressure24hMissingHistory=context.runValidation(pressure24h);
 assert.ok(!pressure24hMissingHistory.issues.some(issue=>issue.title==="24-hour pressure change mismatch"),"missing 24-hour pressure history must not create a false mismatch");
 assert.ok(pressure24hMissingHistory.issues.some(issue=>issue.title==="24-hour MSLP required"),"missing 24-hour pressure history should request the needed value");
+
+const wrongHeaderAtMain=context.runValidation(`SIPH20 RPLC 180000 AAXX 18001 98327 32401 10264 20240 39939 40112 53011 60164 70162 84901 333 20240 55066 56909 58014 70155 81915 83820 86080 94945 555 20002=JG/MP`,{p3:null,p24:null,rainOccurred:false});
+assert.ok(wrongHeaderAtMain.issues.some(issue=>issue.title==="Bulletin type mismatches main observation time"),"SIPH at a main hour must be rejected");
+
+const wrongHeaderAtIntermediate=context.runValidation(`SMPH20 RPLC 180300 AAXX 18031 98327 32401 10264 20240 39939 40112 53011 60164 70162 84901 333 20240 55066 56909 58014 70155 81915 83820 86080 94945 555 20002=JG/MP`,{p3:null,p24:null,rainOccurred:false});
+assert.ok(wrongHeaderAtIntermediate.issues.some(issue=>issue.title==="Bulletin type mismatches intermediate observation time"),"SMPH at an intermediate hour must be rejected");
 
 const baseHead=`SMPH20 RPLC 180000 AAXX 18001 98327`;
 const commonTail=`32401 10264 20240 39939 40112 53011 60164 70162 84901 333 20240 55066 56909 58014 70155 81915 83820 86080 94945 555 20002=JG/MP`;

@@ -11,26 +11,26 @@ as a fallback when the device has no default email application.
 
 ## Required website files
 
-Keep these website files together in the repository root:
+Keep the entry pages at the repository root and group the static assets under the distribution folders:
 
 - `index.html`
-- `styles.css`
-- `app.js`
-- `ruleset-config.js`
-- `ruleset.js`
 - `ruleset.html`
-- `PAGASA_SYNOP_Validator_Ruleset_v0.14.2.pdf`
+- `dist/css/styles.css`
+- `dist/js/app.js`
+- `dist/js/ruleset-config.js`
+- `dist/js/ruleset.js`
+- `dist/pdf/PAGASA_SYNOP_Validator_Ruleset_v0.14.2.pdf`
 
 The documentation and `tests` folder are recommended but are not required for
 the webpage to load.
 
 ## File responsibilities
 
-- `ruleset-config.js` contains the beginner-editable operational settings.
-- `ruleset.js` contains parsing and meteorological validation logic.
-- `app.js` contains webpage controls and result rendering.
+- `dist/js/ruleset-config.js` contains the beginner-editable operational settings.
+- `dist/js/ruleset.js` contains parsing and meteorological validation logic.
+- `dist/js/app.js` contains webpage controls and result rendering.
 - `index.html` loads the files in the required order.
-- `styles.css` contains the first site's visual design.
+- `dist/css/styles.css` contains the first site's visual design.
 - `ruleset.html` displays the current ruleset and provides the PDF download.
 
 ## Test before publishing
