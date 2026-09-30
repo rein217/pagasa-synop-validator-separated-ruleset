@@ -211,9 +211,10 @@ function validate(raw, history={}) {
   if(tend){
     const a=Number(tend[1]),codedTenths=Number(tend.slice(2)),amount=codedTenths/10;
     decoded["3-hour tendency"]=`a=${a}, ppp=${amount.toFixed(1)} hPa`;
-    if(current!==null&&history.p3!==null){
+    const previous3h = history.p3;
+    if(current!==null && previous3h != null && Number.isFinite(previous3h)){
       // Compare integer tenths so a difference of exactly 0.1 hPa is never hidden by floating-point rounding.
-      const deltaTenths=Math.round((current-history.p3)*10), delta=deltaTenths/10, expectedTenths=Math.abs(deltaTenths);
+      const deltaTenths=Math.round((current-previous3h)*10), delta=deltaTenths/10, expectedTenths=Math.abs(deltaTenths);
       const positive=deltaTenths>0, negative=deltaTenths<0, unchanged=deltaTenths===0;
       const allowedA=positive?[0,1,2,3]:negative?[5,6,7,8]:[0,4,5];
       const signOk=allowedA.includes(a);
@@ -459,10 +460,11 @@ function validate(raw, history={}) {
   const h24=p.sec3.find(g=>/^5[89]\d{3}$/.test(g));
   if(h24==="59000") addIssue(issues,"error","Zero 24-hour pressure change must use 58",`59000 uses the negative-change indicator for a zero change. Zero belongs in the 58 group.`,h24,"Change 59000 to 58000 after confirming the two MSLP values are equal.");
   if(RULES.schedule.pressure24Hours.includes(hour)){
-    if(history.p24===null) addIssue(issues,"warning","24-hour MSLP required",`Enter the MSLP from 24 hours before to check the ${h24?h24:"58/59"} pressure-change group.` ,h24||"");
+    const previous24h = history.p24;
+    if(previous24h == null || !Number.isFinite(previous24h)) addIssue(issues,"warning","24-hour MSLP required",`Enter the MSLP from 24 hours before to check the ${h24?h24:"58/59"} pressure-change group.` ,h24||"");
     else if(current!==null&&h24){
       // The 58/59 group is coded in tenths; require an exact signed match at that precision.
-      const deltaTenths=Math.round((current-history.p24)*10), encodedTenths=(h24[1]==="8"?1:-1)*Number(h24.slice(2));
+      const deltaTenths=Math.round((current-previous24h)*10), encodedTenths=(h24[1]==="8"?1:-1)*Number(h24.slice(2));
       const delta=deltaTenths/10, encoded=encodedTenths/10;
       if(deltaTenths!==encodedTenths) addIssue(issues,"error","24-hour pressure change mismatch",`Current MSLP minus the 24-hour-earlier value is ${delta>=0?"+":""}${delta.toFixed(1)} hPa, but ${h24} reports ${encoded>=0?"+":""}${encoded.toFixed(1)} hPa. The values must match exactly to 0.1 hPa.`,h24,`Use ${deltaTenths>=0?"58":"59"}${String(Math.abs(deltaTenths)).padStart(3,"0")}, after confirming both pressures.`);
     }else if(!h24) addIssue(issues,"warning","24-hour pressure-change group not found","A 58p24p24p24 or 59p24p24p24 group was not detected in Section 3.");

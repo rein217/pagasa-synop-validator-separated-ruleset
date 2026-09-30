@@ -89,12 +89,18 @@ const pressure3hExact=context.runValidation(pressure3h,{p3:1008.0,p24:null,rainO
 assert.ok(!pressure3hExact.issues.some(issue=>issue.title==="5appp amount does not match pressure history"),"exact 3-hour pressure change must pass");
 const pressure3hOffByTenth=context.runValidation(pressure3h,{p3:1008.1,p24:null,rainOccurred:false});
 assert.ok(pressure3hOffByTenth.issues.some(issue=>issue.title==="5appp amount does not match pressure history"),"0.1 hPa 3-hour mismatch must be an error");
+const pressure3hMissingHistory=context.runValidation(pressure3h);
+assert.ok(!pressure3hMissingHistory.issues.some(issue=>issue.title==="5appp amount does not match pressure history"),"missing 3-hour pressure history must not create a false mismatch");
+assert.ok(pressure3hMissingHistory.issues.some(issue=>issue.title==="Previous 3-hour MSLP required"),"missing 3-hour pressure history should request the needed value");
 
 const pressure24h=`SMPH20 RPLC 151200 AAXX 15121 98327 11462 72502 10260 20240 39924 40097 56019 69961 76098 84470 333 10342 56990 58002 84620 87360=JD/MP`;
 const pressure24hExact=context.runValidation(pressure24h,{p3:null,p24:1009.5,rainOccurred:false});
 assert.ok(!pressure24hExact.issues.some(issue=>issue.title==="24-hour pressure change mismatch"),"exact 24-hour pressure change must pass");
 const pressure24hOffByTenth=context.runValidation(pressure24h,{p3:null,p24:1009.6,rainOccurred:false});
 assert.ok(pressure24hOffByTenth.issues.some(issue=>issue.title==="24-hour pressure change mismatch"),"0.1 hPa 24-hour mismatch must be an error");
+const pressure24hMissingHistory=context.runValidation(pressure24h);
+assert.ok(!pressure24hMissingHistory.issues.some(issue=>issue.title==="24-hour pressure change mismatch"),"missing 24-hour pressure history must not create a false mismatch");
+assert.ok(pressure24hMissingHistory.issues.some(issue=>issue.title==="24-hour MSLP required"),"missing 24-hour pressure history should request the needed value");
 
 const baseHead=`SMPH20 RPLC 180000 AAXX 18001 98327`;
 const commonTail=`32401 10264 20240 39939 40112 53011 60164 70162 84901 333 20240 55066 56909 58014 70155 81915 83820 86080 94945 555 20002=JG/MP`;
