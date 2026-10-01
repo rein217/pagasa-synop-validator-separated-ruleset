@@ -16,13 +16,13 @@ vm.runInContext(`${configSource}\n${rulesetSource}\nglobalThis.runValidation=Syn
 const pageSource=fs.readFileSync(new URL("../app.js",import.meta.url),"utf8");
 assert.ok(rulesetSource.includes("MSLP outside the realistic surface range"));
 assert.ok(!pageSource.includes("MSLP outside the realistic surface range"));
-assert.equal(context.SYNOP_RULESET_CONFIG.version,"v0.14.2-separated");
+assert.equal(context.SYNOP_RULESET_CONFIG.version,"v0.14.3-separated");
 assert.ok(pageSource.includes("renieragas@gmail.com"),"feedback email must be addressed to the designated reviewer");
 assert.ok(pageSource.includes('document.createElement("a")'),"feedback must launch through an actual mail link");
 const indexSource=fs.readFileSync(new URL("../index.html",import.meta.url),"utf8");
 const rulesPageSource=fs.readFileSync(new URL("../ruleset.html",import.meta.url),"utf8");
 assert.ok(indexSource.includes('href="ruleset.html"'),"ruleset version badge must open the ruleset page");
-assert.ok(rulesPageSource.includes("PAGASA_SYNOP_Validator_Ruleset_v0.14.2.pdf"),"ruleset page must show and download the current PDF");
+assert.ok(rulesPageSource.includes("PAGASA_SYNOP_Validator_Ruleset_v0.14.3.pdf"),"ruleset page must show and download the current PDF");
 
 // Browser-load guard: load app.js after the ruleset as separate classic
 // scripts. This catches global-name collisions that a syntax check misses.
@@ -127,8 +127,23 @@ assert.ok(wrongTemperatureSchedule.issues.some(issue=>issue.title==="Maximum tem
 const badCloudDirection=context.runValidation(`${baseHead} 11465 52401 10264 20240 39939 40112 53011 60164 70162 84901 333 20240 55066 56999 58014 70155 81915 83820 86080 94945 555 20002=JG/MP`,{p3:null,p24:null,rainOccurred:false});
 assert.ok(badCloudDirection.issues.some(issue=>issue.title==="Middle-cloud direction conflicts with no cloud"),"56DDD must use 0 when CM=0");
 
+// CM is a type code, not the obscuring amount.  In this valid PAGASA case,
+// 88460 supplies Ns=8 Altostratus and 56999 correctly makes CH direction unknown.
 const validHighCloudObscuration=context.runValidation(`SIPH20 RPLC 272100 AAXX 27211 98327 32460 83501 10261 20242 39946 40119 53004 8211/ 333 56999 82820 88460=IC/JG`,{p3:null,p24:null,rainOccurred:false});
 assert.ok(!validHighCloudObscuration.issues.some(issue=>issue.title==="High-cloud obscuration needs review"),"Ns=8 middle cloud must support CH=/ regardless of the CM type-code figure");
+
+const unsupportedHighCloudObscuration=context.runValidation(`AAXX 27211 98327 32460 83501 10261 20242 39946 40119 53004 8211/ 333 56999 82820 86460=`,{p3:null,p24:null,rainOccurred:false});
+assert.ok(unsupportedHighCloudObscuration.issues.some(issue=>issue.title==="High-cloud obscuration needs review"),"CH=/ without a 7- or 8-okta middle layer must still be reviewed");
+
+const heavyPrecipitationAt2km=context.runValidation(`AAXX 01001 98327 11420 00000 10200 20100 40000 50000 76400=`,{p3:null,p24:null,rainOccurred:false});
+assert.ok(!heavyPrecipitationAt2km.issues.some(issue=>issue.title==="Visibility higher than the permitted precipitation range"),"2 km must be accepted for heavy precipitation");
+const heavyPrecipitationAbove2km=context.runValidation(`AAXX 01001 98327 11421 00000 10200 20100 40000 50000 76400=`,{p3:null,p24:null,rainOccurred:false});
+assert.ok(heavyPrecipitationAbove2km.issues.some(issue=>issue.title==="Visibility higher than the permitted precipitation range"),"visibility above 2 km must be rejected for heavy precipitation");
+
+const weather40At2km=context.runValidation(`AAXX 01001 98327 11420 00000 10200 20100 40000 50000 74000=`,{p3:null,p24:null,rainOccurred:false});
+assert.ok(!weather40At2km.issues.some(issue=>issue.title==="Visibility too high for present weather 40"),"2 km must be accepted for ww=40");
+const weather40Above2km=context.runValidation(`AAXX 01001 98327 11421 00000 10200 20100 40000 50000 74000=`,{p3:null,p24:null,rainOccurred:false});
+assert.ok(weather40Above2km.issues.some(issue=>issue.title==="Visibility too high for present weather 40"),"visibility above 2 km must be rejected for ww=40");
 
 const zeroH24=context.runValidation(`${baseHead} 11465 52401 10264 20240 39939 40112 53011 60164 70162 84901 333 20240 55066 56909 59000 70155 81915 83820 86080 94945 555 20002=JG/MP`,{p3:null,p24:1011.2,rainOccurred:false});
 assert.ok(zeroH24.issues.some(issue=>issue.title==="Zero 24-hour pressure change must use 58"),"zero 24-hour change must use 58000");

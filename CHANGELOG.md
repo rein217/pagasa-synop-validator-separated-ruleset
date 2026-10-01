@@ -1,5 +1,11 @@
 # Change log
 
+## v0.14.3 visibility thresholds
+
+- Heavy precipitation now accepts horizontal visibility of 2 km or less.
+- Present weather 40 now accepts horizontal visibility of 2 km or less and flags values above 2 km.
+- Updated asset version parameters so browsers load the revised rules instead of a cached v0.14.2 file.
+
 ## v0.14.2 site-document update
 
 - Made the header Ruleset v0.14.2 badge clickable.

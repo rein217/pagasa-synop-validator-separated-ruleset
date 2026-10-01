@@ -1,9 +1,9 @@
-# PAGASA SYNOP Validator v0.14.2
+# PAGASA SYNOP Validator v0.14.3
 
 Static WMO FM 12 SYNOP validator using PAGASA operational practices and the
 2023 amended guidelines on surface synoptic observation.
 
-Version 0.14.2 includes a **Report checker issue** button. It opens an editable
+Version 0.14.3 includes the **Report checker issue** button and updated visibility limits for heavy precipitation and present weather 40. It opens an editable
 email draft addressed to `renieragas@gmail.com` containing the entered SYNOP
 code and the validator findings. The webpage does not automatically send or
 store the report. This version uses a shorter email link and copies the draft
@@ -19,7 +19,7 @@ Keep these website files together in the repository root:
 - `ruleset-config.js`
 - `ruleset.js`
 - `ruleset.html`
-- `PAGASA_SYNOP_Validator_Ruleset_v0.14.2.pdf`
+- `PAGASA_SYNOP_Validator_Ruleset_v0.14.3.pdf`
 
 The documentation and `tests` folder are recommended but are not required for
 the webpage to load.
@@ -55,7 +55,7 @@ cloud, pressure, and additional-error regression checks passed
    repository root, not inside another folder.
 4. When GitHub asks about files with the same name, allow the new files to
    replace the older versions.
-5. Enter a commit message such as `Update PAGASA SYNOP Validator to v0.14.2`.
+5. Enter a commit message such as `Update PAGASA SYNOP Validator to v0.14.3`.
 6. Select **Commit directly to the main branch**. If that choice is unavailable,
    select **Create a new branch and start a pull request**, then merge the pull
    request into `main`.

@@ -51,7 +51,7 @@ function precipitationVisibility(ww){
   const moderateHeavy=[57,59,67,69,81,84,86,88,90,92,94];
   if(light.includes(ww)) return {label:"light precipitation",min:9,max:Infinity,range:"9 km or more"};
   if(moderate.includes(ww)) return {label:"moderate precipitation",min:2,max:9,range:"2 km to less than 9 km"};
-  if(heavy.includes(ww)) return {label:"heavy precipitation",min:0,max:2,range:"less than 2 km"};
+  if(heavy.includes(ww)) return {label:"heavy precipitation",min:0,max:2,maxInclusive:true,range:"2 km or less"};
   if(moderateHeavy.includes(ww)) return {label:"moderate or heavy precipitation",min:0,max:9,range:"less than 9 km"};
   if([95,96].includes(ww)) return {label:"slight or moderate thunderstorm precipitation",min:2,max:Infinity,range:"2 km or more"};
   return null;
@@ -256,9 +256,11 @@ function validate(raw, history={}) {
       decoded["Horizontal visibility"]=`VV=${vvCode}: ${visibility[2]}`;
       const expected=precipitationVisibility(ww);
       if(expected&&visibility[1]<expected.min) addIssue(issues,"warning","Visibility lower than the suggested precipitation range",`ww=${ww} indicates ${expected.label}, for which the suggested visibility is ${expected.range}; VV=${vvCode} reports ${visibility[2]}.`,`${p.sec1[0]} ${weather7}`,"Review the reported precipitation intensity and visibility for consistency.");
-      if(expected&&Number.isFinite(expected.max)&&visibility[0]>=expected.max) addIssue(issues,"error","Visibility higher than the permitted precipitation range",`ww=${ww} indicates ${expected.label}, for which the suggested visibility is ${expected.range}; VV=${vvCode} reports ${visibility[2]}.`,`${p.sec1[0]} ${weather7}`,"Correct VV or the present-weather intensity after checking the observation.");
+      const abovePrecipitationMaximum=expected&&Number.isFinite(expected.max)&&(expected.maxInclusive?visibility[0]>expected.max:visibility[0]>=expected.max);
+      if(abovePrecipitationMaximum) addIssue(issues,"error","Visibility higher than the permitted precipitation range",`ww=${ww} indicates ${expected.label}, for which the suggested visibility is ${expected.range}; VV=${vvCode} reports ${visibility[2]}.`,`${p.sec1[0]} ${weather7}`,"Correct VV or the present-weather intensity after checking the observation.");
       if([4,5,6].includes(ww)&&visibility[0]>=10) addIssue(issues,"error","Visibility too high for smoke, haze, or dust",`ww=${String(ww).padStart(2,"0")} normally corresponds to horizontal visibility below 10 km, but VV=${vvCode} reports ${visibility[2]}.`,`${p.sec1[0]} ${weather7}`);
       if(ww>=41&&ww<=49&&visibility[0]>=1) addIssue(issues,"error","Visibility too high for fog at the station",`ww=${ww} reports fog or ice fog at the station, for which visibility should be below 1 km; VV=${vvCode} reports ${visibility[2]}.`,`${p.sec1[0]} ${weather7}`);
+      if(ww===40&&visibility[0]>2) addIssue(issues,"error","Visibility too high for present weather 40",`ww=40 reports fog at a distance, for which horizontal visibility should be 2 km or less; VV=${vvCode} reports ${visibility[2]}.`,`${p.sec1[0]} ${weather7}`,"Correct VV or the present-weather code after checking the observation.");
       const visibilityReducingWeather=(ww>=4&&ww<=12)||(ww>=20&&ww<=99);
       if(visibility[1]<=RULES.unexplainedVisibilityWarningKm&&!visibilityReducingWeather) addIssue(issues,"warning","Low visibility is not supported by present weather",`VV=${vvCode} reports ${visibility[2]}, but ww=${String(ww).padStart(2,"0")} does not identify precipitation, mist, haze, fog, or another weather phenomenon that explains visibility of ${RULES.unexplainedVisibilityWarningKm} km or less.`,`${p.sec1[0]} ${weather7}`,"Review VV and report the observed visibility-reducing weather when applicable.");
     }
@@ -378,7 +380,10 @@ function validate(raw, history={}) {
       if(typeCodes[i]==="0"&&directions[i]!=="0") addIssue(issues,"error",`${label[0].toUpperCase()+label.slice(1)}-cloud direction conflicts with no cloud`,`${section1CloudMeaning(primaryCloud,label)}; therefore ${directionGroup} should use direction indicator 0 for ${label} cloud, not ${directions[i]}.`,`${primaryCloud} ${directionGroup}`,`Use 0 in the ${label}-cloud direction position, or correct the Section 1 cloud type.`);
       if(typeCodes[i]==="/"&&directions[i]!=="9") addIssue(issues,"error",`${label[0].toUpperCase()+label.slice(1)}-cloud direction should be unknown`,`${section1CloudMeaning(primaryCloud,label)}; use direction indicator 9 because the cloud cannot be observed.`,`${primaryCloud} ${directionGroup}`,`Use 9 in the ${label}-cloud direction position.`);
     });
-    // CM is a cloud-type code, not an amount. Use the Section 3 Ns figure.
+    // CM is a cloud-type code, not an amount.  When CH=/, use the Ns
+    // figure in a Section 3 middle-cloud layer to verify obscuration.
+    // PAGASA practice accepts 7 or 8 oktas of Ac/As/Ns as the layer that
+    // prevents the high cloud from being observed.
     const highCloudObscured=cloudLayers.some(layer=>layer.ns>=7&&layer.ns<=8&&layer.c>=3&&layer.c<=5);
     if(primaryCloud[4]==="/"&&!highCloudObscured) addIssue(issues,"warning","High-cloud obscuration needs review",`CH=/ means high cloud cannot be observed, but no Section 3 middle-cloud layer reports Ns=7 or 8 oktas. CM=${primaryCloud[3]} identifies the middle-cloud type; it is not the cloud amount.`,`${primaryCloud} ${directionGroup}`,"Confirm the obscuring middle-cloud layer and report it as 8NsChshs with Ns=7 or 8; use high-cloud direction indicator 9.");
   }
