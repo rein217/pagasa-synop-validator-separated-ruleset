@@ -30,12 +30,33 @@ function render(result){
 
 function history(){return {p3:n($("p3").value),p24:n($("p24").value),rainOccurred:$("rainOccurred").checked}}
 
+function detectRainfallFromCode(code){
+  const p=parseCode(code);
+  const section1Data=p.sec1.slice(2);
+  const weather7=section1Data.find(g=>/^7[0-9\/]{4}$/.test(g));
+  const rain1=section1Data.filter(g=>/^6[0-9\/]{4}$/.test(g));
+  const rain3=p.sec3.filter(g=>/^6[0-9\/]{4}$/.test(g));
+  if(rain1.length||rain3.length) return true;
+  if(!weather7) return false;
+  const ww=Number(weather7.slice(1,3));
+  const w1=Number(weather7[3]);
+  const w2=Number(weather7[4]);
+  const precipitationCode=(ww>=20&&ww<=29)||(ww>=50&&ww<=99);
+  const pastWeatherSupportsRain=[w1,w2].some(v=>v>=5&&v<=9);
+  return precipitationCode||pastWeatherSupportsRain;
+}
+
+window.detectRainfallFromCode = detectRainfallFromCode;
+
 // Batch B — detect the report time and show the 24-hour field when needed.
 function updateTime(){
-  const p=parseCode($("synopCode").value),ok=/^\d{5}$/.test(p.yy),hour=ok?Number(p.yy.slice(2,4)):null;
+  const code=$("synopCode").value;
+  const p=parseCode(code),ok=/^\d{5}$/.test(p.yy),hour=ok?Number(p.yy.slice(2,4)):null;
   $("obsTimeBadge").textContent=ok?`${String(hour).padStart(2,"0")}:00 UTC detected`:"Time not detected";
   $("obsTimeBadge").classList.toggle("active",ok);
   $("p24Wrap").classList.toggle("visible",window.SYNOP_RULESET_CONFIG.schedule.pressure24Hours.includes(hour));
+  if(code.trim() && detectRainfallFromCode(code)) $("rainOccurred").checked=true;
+  else if(code.trim() && !detectRainfallFromCode(code)) $("rainOccurred").checked=false;
 }
 $("synopCode").addEventListener("input",updateTime);
 

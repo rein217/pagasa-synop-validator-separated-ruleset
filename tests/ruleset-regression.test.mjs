@@ -28,6 +28,12 @@ assert.ok(rulesPageSource.includes("dist/pdf/PAGASA_SYNOP_Validator_Ruleset_v0.1
 // scripts. This catches global-name collisions that a syntax check misses.
 vm.runInContext(pageSource,context,{filename:"app.js"});
 
+assert.equal(context.detectRainfallFromCode("AAXX 01001 98327 11456 80000 10200 20100 40000 50000 333 61110="),true,"rainfall group must be detected automatically");
+assert.equal(context.detectRainfallFromCode("AAXX 01001 98327 11456 80000 10200 20100 40000 50000 333="),false,"dry observation must not trigger rainfall detection");
+
+const impliedRain=context.runValidation("AAXX 01001 98327 11456 80000 10200 20100 40000 50000 333 61110=",{p3:null,p24:null,rainOccurred:false});
+assert.ok(impliedRain.issues.some(issue=>issue.title==="Rainfall is implied by the observation"),"coded rainfall must warn when the checkbox is unchecked");
+
 const missed=`SIPH20 RPLC 212100 AAXX 21211 98327 32458 72001 10253 20238 39930 40102 55002 83108 333 56909 83820 87360=IC`;
 const missedResult=context.runValidation(missed,{p3:null,p24:null,rainOccurred:false});
 const missedIssue=missedResult.issues.find(issue=>issue.group==="83108 87360");

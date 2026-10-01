@@ -243,6 +243,15 @@ function validate(raw, history={}) {
   }
 
   const weather7=section1Data.find(g=>/^7[0-9\/]{4}$/.test(g));
+  const rainfallEvidence=[...rain1,...rain3];
+  if(weather7){
+    const ww=Number(weather7.slice(1,3)),w1=Number(weather7[3]),w2=Number(weather7[4]);
+    const presentSupportsRain=(ww>=20&&ww<=29)||(ww>=50&&ww<=99);
+    const pastSupportsRain=[w1,w2].some(w=>w>=5&&w<=9);
+    if(presentSupportsRain||pastSupportsRain) rainfallEvidence.push(weather7);
+  }
+  if(history.rainOccurred===false && rainfallEvidence.length>0) addIssue(issues,"warning","Rainfall is implied by the observation",`The report includes rainfall evidence (${rainfallEvidence.join(" ")}), but the rainfall checkbox is not checked.`,rainfallEvidence.join(" "),"Review the observation and check the rainfall box if precipitation is present.");
+
   const nationalRain=p.sec5.find(g=>/^2\d{4}$/.test(g));
   if(nationalRain&&Number(nationalRain.slice(1))>0&&!weather7) addIssue(issues,"error","Rainfall requires present or past weather",`${nationalRain} reports rainfall during the preceding six hours, but no 7wwW1W2 group is available for the present/past weather cross-check.`,`${p.sec1[0]} 555 ${nationalRain}`,"Correct ix and include 7wwW1W2 with the observed present and past weather.");
   if(["1","4","7"].includes(ix)&&!weather7) addIssue(issues,"error","No significant-weather 7-group","ix indicates that present and past weather are being reported, but no 7wwW1W2 group was found.",p.sec1[0],"Include the required 7-group, or correct ix if no significant weather occurred.");
