@@ -30,6 +30,7 @@
           <label>3 hours before (hPa)<input id="p3" inputmode="decimal" type="number" step="0.1" placeholder="e.g. 1011.6"></label>
           <label id="p24Wrap" class="conditional">24 hours before (hPa)<input id="p24" inputmode="decimal" type="number" step="0.1" placeholder="Required at 00/12 UTC"></label>
         </div>
+        <p class="field-note">Validated MSLP readings are saved in this browser and matched by station and SYNOP day/hour. You can edit an autofilled value. Since the time group has no month or year, automatic matching is skipped when it would cross into an unknown month.</p>
         <label class="check-row"><input id="rainOccurred" type="checkbox"> Rainfall occurred during the reporting period</label>
         <p class="field-note">Tick this only when rainfall occurred. The checker will compare the rainfall group, <code>iR</code>, <code>tR</code>, and present/past weather. Leaving it unticked does not mean zero rainfall.</p>
         <p class="field-note">The 3-hour difference checks the sign category of <code>a</code> and the magnitude in <code>ppp</code>. At 00 and 12 UTC, the 24-hour value checks the Section 3 <code>58/59</code> group.</p>

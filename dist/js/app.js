@@ -13,6 +13,8 @@ const $ = (id) => document.getElementById(id);
 const { parseCode, validate } = window.SynopRuleset;
 const sample4 = `SMPH20 RPLC 151200 AAXX 15121 98327 11462 72502 10260 20240 39924 40097 56019 69961 76098 84470 333 10342 56990 58002 84620 87360=JD/MP`;
 const n = (value) => value === "" ? null : Number(value);
+const pressureHistoryKey = "pagasaSynopMslpHistoryV1";
+const pressureHistoryMaxAge = 36 * 60 * 60 * 1000;
 let lastResult = null;
 
 // Batch A — turn validator results into readable cards.
@@ -29,6 +31,64 @@ function render(result){
 }
 
 function history(){return {p3:n($("p3").value),p24:n($("p24").value),rainOccurred:$("rainOccurred").checked}}
+
+function observationSlot(code){
+  const parsed=parseCode(code);
+  const match=/^(\d{2})(\d{2})\d$/.exec(parsed.yy);
+  if(!match||!/^[0-9]{5}$/.test(parsed.station)) return null;
+  const day=Number(match[1]),hour=Number(match[2]);
+  if(day<1||day>31||hour>23) return null;
+  return {station:parsed.station,day,hour};
+}
+
+function previousSlot(slot,hours){
+  const totalHours=slot.hour-hours;
+  const day=slot.day+Math.floor(totalHours/24);
+  if(day<1) return null;
+  return {station:slot.station,day,hour:(totalHours%24+24)%24};
+}
+
+function storedMslp(){
+  try{
+    const entries=JSON.parse(window.localStorage.getItem(pressureHistoryKey)||"[]");
+    if(!Array.isArray(entries)) return [];
+    const now=Date.now();
+    const valid=entries.filter(entry=>entry&&/^[0-9]{5}$/.test(entry.station)&&Number.isInteger(entry.day)&&entry.day>=1&&entry.day<=31&&Number.isInteger(entry.hour)&&entry.hour>=0&&entry.hour<=23&&Number.isFinite(entry.mslp)&&Number.isFinite(entry.savedAt)&&now-entry.savedAt>=0&&now-entry.savedAt<=pressureHistoryMaxAge);
+    if(valid.length!==entries.length) window.localStorage.setItem(pressureHistoryKey,JSON.stringify(valid));
+    return valid;
+  }catch{return []}
+}
+
+function findPreviousMslp(slot,hours){
+  const target=previousSlot(slot,hours);
+  if(!target) return null;
+  return storedMslp().filter(entry=>entry.station===target.station&&entry.day===target.day&&entry.hour===target.hour).sort((a,b)=>b.savedAt-a.savedAt)[0]?.mslp??null;
+}
+
+function fillPressureHistory(){
+  const slot=observationSlot($("synopCode").value);
+  [["p3",3],["p24",24]].forEach(([id,hours])=>{
+    const input=$(id);
+    if(input.dataset.autoFilled==="true"){
+      input.value="";
+      input.dataset.autoFilled="false";
+    }
+    if(!slot||input.value!==""||(id==="p24"&&!window.SYNOP_RULESET_CONFIG.schedule.pressure24Hours.includes(slot.hour))) return;
+    const value=findPreviousMslp(slot,hours);
+    if(value!==null){input.value=value.toFixed(1);input.dataset.autoFilled="true";}
+  });
+}
+
+function saveCurrentMslp(code,result){
+  const slot=observationSlot(code);
+  const value=Number.parseFloat(result.decoded["Current MSLP"]);
+  const limits=window.SYNOP_RULESET_CONFIG.pressure;
+  if(!slot||!Number.isFinite(value)||value<limits.minimumMslp||value>limits.maximumMslp) return;
+  const now=Date.now();
+  const entries=storedMslp().filter(entry=>!(entry.station===slot.station&&entry.day===slot.day&&entry.hour===slot.hour));
+  entries.push({...slot,mslp:value,savedAt:now});
+  try{window.localStorage.setItem(pressureHistoryKey,JSON.stringify(entries.slice(-100)));}catch{}
+}
 
 function detectRainfallFromCode(code){
   const p=parseCode(code);
@@ -57,11 +117,20 @@ function updateTime(){
   $("p24Wrap").classList.toggle("visible",window.SYNOP_RULESET_CONFIG.schedule.pressure24Hours.includes(hour));
   if(code.trim() && detectRainfallFromCode(code)) $("rainOccurred").checked=true;
   else if(code.trim() && !detectRainfallFromCode(code)) $("rainOccurred").checked=false;
+  fillPressureHistory();
 }
 $("synopCode").addEventListener("input",updateTime);
+$("p3").addEventListener("input",event=>{event.currentTarget.dataset.autoFilled="false";});
+$("p24").addEventListener("input",event=>{event.currentTarget.dataset.autoFilled="false";});
 
 // Batch C — button actions.
-$("validate").addEventListener("click",()=>render(validate($("synopCode").value,history())));
+$("validate").addEventListener("click",()=>{
+  fillPressureHistory();
+  const code=$("synopCode").value;
+  const result=validate(code,history());
+  render(result);
+  saveCurrentMslp(code,result);
+});
 $("loadSample").addEventListener("click",()=>{$("synopCode").value=sample4;$("rainOccurred").checked=false;["p3","p24"].forEach(id=>$(id).value="");updateTime();render(validate(sample4,history()));});
 $("clear").addEventListener("click",()=>{$("synopCode").value="";$("rainOccurred").checked=false;["p3","p24"].forEach(id=>$(id).value="");updateTime();$("results").innerHTML=`<div class="empty-state"><div class="empty-icon">✓</div><h2>Ready to check</h2><p>Paste an observation and provide its pressure history.</p></div>`;});
 

@@ -2,9 +2,11 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import vm from "node:vm";
 
-const element=()=>({value:"",checked:false,textContent:"",innerHTML:"",addEventListener(){},classList:{toggle(){}}});
+const element=()=>({value:"",checked:false,textContent:"",innerHTML:"",dataset:{},listeners:{},addEventListener(name,handler){this.listeners[name]=handler;},dispatch(name){this.listeners[name]?.({currentTarget:this});},classList:{toggle(){}}});
 const elements=new Map();
 const context={console,document:{getElementById(id){if(!elements.has(id))elements.set(id,element());return elements.get(id);},modelContext:null}};
+const localStorageValues=new Map();
+context.localStorage={getItem(key){return localStorageValues.get(key)??null;},setItem(key,value){localStorageValues.set(key,value);}};
 context.window=context;
 vm.createContext(context);
 const configSource=fs.readFileSync(new URL("../dist/js/ruleset-config.js",import.meta.url),"utf8");
@@ -27,6 +29,35 @@ assert.ok(rulesPageSource.includes("dist/pdf/PAGASA_SYNOP_Validator_Ruleset_v0.1
 // Browser-load guard: load app.js after the ruleset as separate classic
 // scripts. This catches global-name collisions that a syntax check misses.
 vm.runInContext(pageSource,context,{filename:"app.js"});
+
+const pressureHistoryKey="pagasaSynopMslpHistoryV1";
+const savedAt=Date.now();
+localStorageValues.set(pressureHistoryKey,JSON.stringify([
+	{station:"98327",day:17,hour:9,mslp:1008.0,savedAt},
+	{station:"98327",day:16,hour:12,mslp:1009.5,savedAt},
+	{station:"12345",day:17,hour:9,mslp:999.0,savedAt},
+	{station:"98327",day:17,hour:9,mslp:1000.0,savedAt:savedAt-37*60*60*1000}
+]));
+const synopInput=context.document.getElementById("synopCode");
+const p3Input=context.document.getElementById("p3");
+const p24Input=context.document.getElementById("p24");
+synopInput.value="AAXX 17121 98327 11462 72502 10260 20240 39924 40107 56019 333";
+synopInput.dispatch("input");
+assert.equal(p3Input.value,"1008.0","3-hour MSLP should autofill for the same station and target day/hour");
+assert.equal(p24Input.value,"1009.5","24-hour MSLP should autofill at a scheduled hour");
+assert.ok(!JSON.parse(localStorageValues.get(pressureHistoryKey)).some(entry=>entry.mslp===1000.0),"expired MSLP records should be removed from localStorage on lookup");
+p3Input.value="1007.0";
+p3Input.dispatch("input");
+synopInput.value="AAXX 17131 98327 11462 72502 10260 20240 39924 40107 56019 333";
+synopInput.dispatch("input");
+assert.equal(p3Input.value,"1007.0","manual pressure entries must not be overwritten by autofill");
+
+synopInput.value="AAXX 01001 98327 11462 72502 10260 20240 39924 40107 56019 333";
+synopInput.dispatch("input");
+assert.equal(p24Input.value,"","24-hour history must not guess across an unknown month boundary");
+context.document.getElementById("validate").dispatch("click");
+const savedEntries=JSON.parse(localStorageValues.get(pressureHistoryKey));
+assert.ok(savedEntries.some(entry=>entry.station==="98327"&&entry.day===1&&entry.hour===0&&entry.mslp===1010.7),"validation should save the decoded current MSLP locally");
 
 assert.equal(context.detectRainfallFromCode("AAXX 01001 98327 11456 80000 10200 20100 40000 50000 333 61110="),true,"rainfall group must be detected automatically");
 assert.equal(context.detectRainfallFromCode("AAXX 01001 98327 11456 80000 10200 20100 40000 50000 333="),false,"dry observation must not trigger rainfall detection");
